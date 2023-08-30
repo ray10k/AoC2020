@@ -4,7 +4,7 @@ use std::convert::TryFrom;
 struct PasswordLine{
     min:usize,
     max:usize,
-    character:String,
+    character:char,
     password:String,
 }
 
@@ -22,10 +22,9 @@ impl TryFrom<&str> for PasswordLine {
             return Err("format mismatch; exactly 1 : is expected.");
         }
         let parts: Vec<&str> = value.split([' ',':','-'].as_ref()).collect();
-        println!("{:?}",parts);
         let min:usize = parts[0].parse().unwrap();
         let max:usize = parts[1].parse().unwrap();
-        let character = parts[2].to_owned();
+        let character = parts[2].chars().collect::<Vec<char>>()[0];
         let password = parts[4].to_owned();
         return Ok(PasswordLine { min, max: max, character: character, password: password });
     }
@@ -46,7 +45,7 @@ fn setup<'a>(input_path:&str) -> Vec<PasswordLine>{
 fn first_star(input:&Vec<PasswordLine>) -> String {
     let mut correct_count:u32 = 0;
     for pw in input{
-        let letter_count = pw.password.matches(pw.character.chars().take(1).last().unwrap()).count();
+        let letter_count = pw.password.matches(pw.character).count();
         if letter_count >= pw.min && letter_count <= pw.max {
             correct_count += 1;
         }
@@ -54,9 +53,27 @@ fn first_star(input:&Vec<PasswordLine>) -> String {
     return correct_count.to_string();
 }
 
+fn second_star(input:&Vec<PasswordLine>) -> String {
+    let mut correct_count:u32 = 0;
+
+    for pw in input {
+        let characters:Vec<char> = pw.password.chars().collect();
+        let mut matches = 0;
+        if characters[pw.min-1] == pw.character
+            { matches += 1; }
+        if characters[pw.max-1] == pw.character
+            { matches += 1; }
+        if matches == 1 
+            { correct_count += 1;}
+    }
+
+    return correct_count.to_string();
+}
+
 pub fn run_day(input_path:&str) {
     let data = setup(input_path);
     let first = first_star(&data);
+    let second = second_star(&data);
 
-    println!("Day 2.\nStar one: {first}.\nStar two: .");
+    println!("Day 2.\nStar one: {first}.\nStar two: {second}.");
 }
