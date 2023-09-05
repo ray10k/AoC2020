@@ -53,9 +53,7 @@ fn star_two(input:&Vec<Vec<Vec<char>>>) -> String {
         yesses.extend(group[0].iter());
         if group.len() > 1 {
             for answer in group[1..].iter() {
-                let mut answers:HashSet<char> = HashSet::new();
-                answers.extend(answer);
-                yesses.retain(|x| answers.contains(x));
+                yesses.retain(|x| answer.contains(x));
             }
         }
         retval += yesses.len();
@@ -70,5 +68,5 @@ pub fn run_day(input_file:&str) {
     let one = star_one(&parsed_data);
     let two = star_two(&parsed_data);
 
-    println!("Day six.\nStar one: {one}\nStar two: {two}");
+    println!("Day 6.\nStar one: {one}\nStar two: {two}");
 }

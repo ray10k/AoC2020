@@ -103,5 +103,5 @@ pub fn run_day(input_path:&str) {
     let parsed_input = setup(input_path);
     let one = star_one(&parsed_input);
     let two = star_two(&parsed_input);
-    println!("Day four.\nStar one: {one}\nStar two: {two}");
+    println!("Day 4.\nStar one: {one}\nStar two: {two}");
 }
