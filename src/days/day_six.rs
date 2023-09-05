@@ -23,7 +23,9 @@ fn setup(input_file:&str) -> Vec<Vec<Vec<char>>> { //groups, persons, answers.
             group.push(person.chars().collect());
         }
     }
-    println!("Final group {:?} parsed.",group);
+    if verbose {
+        println!("Final group {:?} parsed.",group);
+    }
     retval.push(group);
 
     return retval;
