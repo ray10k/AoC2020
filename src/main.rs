@@ -8,4 +8,5 @@ fn main() {
     days::day_three::run_day("inputs/day_3.txt");
     days::day_four::run_day("inputs/day_4.txt");
     days::day_five::run_day("inputs/day_5.txt");
+    days::day_six::run_day("inputs/day_6.txt");
 }
