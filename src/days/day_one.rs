@@ -49,9 +49,8 @@ fn second_star(numbers:&Vec<u32>)->String {
 
 pub fn run_day(input_path: &str) {
     let numbers = setup(input_path);
-    println!("Parsed number count: {}",numbers.len());
     let star_one = first_star(&numbers);
     let star_two = second_star(&numbers);
-    println!("AoC 2020, day 1.\nStar 1 output: {star_one}.\nStar 2 output: {star_two}.");
+    println!("day 1.\nStar one: {star_one}\nStar two: {star_two}");
 
 }

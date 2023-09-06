@@ -75,5 +75,5 @@ pub fn run_day(input_path:&str) {
     let first = first_star(&data);
     let second = second_star(&data);
 
-    println!("Day 2.\nStar one: {first}.\nStar two: {second}.");
+    println!("Day 2.\nStar one: {first}\nStar two: {second}");
 }
