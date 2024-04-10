@@ -28,6 +28,10 @@ impl WaitingArea {
         self.states.len() / self.width
     }
 
+    fn blank_state(&self) -> Vec<Tile> {
+        return vec![Tile::Floor;self.states.len()];
+    }
+
     fn occupied_seats(&self) -> usize {
         let mut retval = 0;
         for tile in self.states.iter() {
@@ -95,10 +99,8 @@ impl Iterator for WaitingAreaIter {
                         continue;
                     }
                     let index = to_index((x+d_x)-1,(y+d_y)-1);
-                    match self.state.states[index] {
-                        Tile::Empty => (),
-                        Tile::Floor => (),
-                        Tile::Occupied => occupied += 1,
+                    if let Tile::Occupied = self.state.states[index] {
+                        occupied += 1;
                     }
                 }
             }
@@ -158,6 +160,7 @@ struct WaitingAreaVisionIter {
 
 impl WaitingAreaVisionIter {
     fn new(initial_state:&WaitingArea) -> Self {
+        //Build lookup-table, detailing the indices of visible chairs from each chair.
         let mut lookup = HashMap::new();
 
         let height:isize = initial_state.height().try_into().expect("Could not convert height.");
@@ -169,31 +172,22 @@ impl WaitingAreaVisionIter {
             let mut visible:Vec<usize> = Vec::new();
             let x = index % width;
             let y = index / width;
-            for d_x in -1..=1 {
-                if d_x == -1 && x == 0 {
-                    continue;
-                }
-                if d_x == 1 && x+1 == width {
-                    continue;
-                }
-                'inner: for d_y in -1..=1 {
-                    if d_x == 0 && d_y == 0 {
-                        continue;
-                    }
-                    if d_y == -1 && y == 0 {
-                        continue;
-                    }
-                    if d_y == 1 && y+1 == width {
-                        continue;
-                    }
-                    
-                    let line = LineIterator{x:x, y:y, width:width, height:height, d_x:d_x, d_y:d_y};
-                    for index in line{
-                        match initial_state.states[index] {
-                            Tile::Empty => {visible.push(index); continue 'inner;},
-                            Tile::Occupied => {visible.push(index); continue 'inner;},
-                            _ => (),
-                        };
+            for (d_x, d_y) in [(-1,-1),(-1,0),(-1,1),(0,-1),(0,1),(1,-1),(1,0),(1,1)] {
+                match (d_x, d_y) {
+                    (-1,_) if x == 0 => (),
+                    (1,_) if x >= width => (),
+                    (_,-1) if y == 0 => (),
+                    (_,1) if y >= height => (),
+                    _ => {
+                        let line = LineIterator{x:x, y:y, width:width, height:height, d_x:d_x, d_y:d_y};
+                        for index in line{
+                            if let Tile::Floor = initial_state.states[index] {
+                                continue;
+                            } else {
+                                visible.push(index);
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -208,7 +202,7 @@ impl Iterator for WaitingAreaVisionIter {
     type Item = WaitingArea;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut new_state = self.state.states.to_vec();
+        let mut new_state = self.state.blank_state();
         for (index,visibles) in self.lookup.iter() {
             let mut occupied = 0;
 
@@ -220,20 +214,17 @@ impl Iterator for WaitingAreaVisionIter {
             }
             match self.state.states[*index] {
                 Tile::Floor => {panic!("There is no chair in position {}",*index)},
-                Tile::Empty => {
-                    if occupied == 0 {
-                        new_state[*index] = Tile::Occupied;
-                    }
+                Tile::Empty if occupied == 0 => {
+                    new_state[*index] = Tile::Occupied;
                 },
-                Tile::Occupied => {
-                    if occupied >= 5 {
-                        new_state[*index] = Tile::Empty;
-                    }
+                Tile::Occupied if occupied >= 5 => {
+                    new_state[*index] = Tile::Empty;
+                },
+                _ => {
+                    new_state[*index] = self.state.states[*index];
                 }
             }
         };
-        
-
 
         if self.state.states == new_state {
             None
@@ -271,7 +262,6 @@ fn star_one(initial_state:&WaitingArea) -> String {
 }
 
 fn star_two(initial_state:&WaitingArea) -> String {
-    println!("{initial_state}\n");
     let iterator = initial_state.iter_vision();
 
     if let Some(s) = iterator.last() {
