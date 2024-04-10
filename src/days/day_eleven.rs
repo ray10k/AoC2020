@@ -265,7 +265,6 @@ fn star_two(initial_state:&WaitingArea) -> String {
     let iterator = initial_state.iter_vision();
 
     if let Some(s) = iterator.last() {
-        println!("{s}");
         s.occupied_seats().to_string()
     } else {
         "ERROR".to_string()
