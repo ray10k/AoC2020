@@ -13,5 +13,5 @@ fn main() {
     days::day_eight::run_day("inputs/day_8.txt");
     days::day_nine::run_day("inputs/day_9.txt");
     days::day_ten::run_day("inputs/day_10.txt");
-    days::day_eleven::run_day("inputs/day_11.txt"); //2087 too low.
+    days::day_eleven::run_day("inputs/day_11.txt");
 }
