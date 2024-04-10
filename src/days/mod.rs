@@ -9,6 +9,7 @@ pub mod day_eight;
 pub mod day_nine;
 pub mod day_ten;
 pub mod day_eleven;
+pub mod day_twelve;
 
 pub fn verbosity_set(verbose:bool) {
     day_five::verbosity_set(verbose);
