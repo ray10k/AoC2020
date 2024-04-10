@@ -110,7 +110,7 @@ struct Ship {
 
 impl Default for Ship {
     fn default() -> Self {
-        Self { facing: Absolute::East, x: Default::default(), y: Default::default() }
+        Self { facing: Absolute::East, x:0, y:0 }
     }
 }
 
@@ -129,6 +129,11 @@ impl Ship {
             Direction::Relative(rel) => self.turn(rel,mag),
             Direction::Forward => self.slide(&facing,mag),
         }
+    }
+
+    pub fn move_towards(&mut self, wp:&Waypoint, repeats:isize) {
+        self.x += wp.x * repeats;
+        self.y += wp.y * repeats;
     }
 
     pub fn manhattan(&self) -> usize {
@@ -160,6 +165,61 @@ impl Ship {
     }
 }
 
+struct Waypoint {
+    x:isize,
+    y:isize,
+}
+
+impl Display for Waypoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Waypoint at relative {},{}",self.x, self.y)
+    }
+}
+
+impl Default for Waypoint {
+    fn default() -> Self {
+        Self { x: 10, y: 1 }
+    }
+}
+
+impl Waypoint {
+    pub fn perform_action(&mut self, action:&Action) {
+        let mag = action.magnitude as isize;
+        match &action.direction {
+            Direction::Absolute(abs) => self.slide(abs, mag),
+            Direction::Relative(rel) => self.turn(rel,mag),
+            Direction::Forward => (),
+        }
+    }
+
+    fn turn(&mut self, direction:&Relative, magnitude:isize) {
+        let steps = match direction {
+            Relative::Left => magnitude / 90,
+            Relative::Right => 4 - (magnitude / 90),
+        };
+        //Simplified rotation matrices; the turns are always a multiple of 90 degrees.
+        //Note: turns are counter-clockwise.
+        let (new_x,new_y) = match steps % 4 {
+            1 => (-self.y, self.x),
+            2 => (-self.x,-self.y),
+            3 => ( self.y,-self.x),
+            _ => ( self.x, self.y)
+        };
+
+        self.x = new_x;
+        self.y = new_y;
+    }
+
+    fn slide(&mut self, direction:&Absolute, magnitude:isize) {
+        match direction{
+            Absolute::North => self.y += magnitude,
+            Absolute::East => self.x += magnitude,
+            Absolute::South => self.y -= magnitude,
+            Absolute::West => self.x -= magnitude,
+        }
+    }
+}
+
 fn setup(input_path:&str) -> Vec<Action> {
     let input = fs::read_to_string(input_path).expect("Could not read input");
     let mut retval:Vec<Action> = Vec::new();
@@ -182,13 +242,22 @@ fn star_one(initial_state:&Vec<Action>) -> String {
 }
 
 fn star_two(initial_state:&Vec<Action>) -> String {
+    let mut ship = Ship::default();
+    let mut wp = Waypoint::default();
+    for act in initial_state.iter(){
+        if let Direction::Forward = act.direction {
+            ship.move_towards(&wp, act.magnitude as isize);
+        } else {
+            wp.perform_action(act);
+        }
+    }
 
-    "".into()
+    format!("{}",ship.manhattan())
 }
 
 pub fn run_day(input_path:&str) {
     let initial_state = setup(input_path);
     let one = star_one(&initial_state);
     let two = star_two(&initial_state);
-    println!("Day 11.\nStar one: {one}\nStar two: {two}");
+    println!("Day 12.\nStar one: {one}\nStar two: {two}");
 }
