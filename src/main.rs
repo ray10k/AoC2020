@@ -17,4 +17,5 @@ fn main() {
     days::day_twelve::run_day("inputs/day_12.txt");
     days::day_thirteen::run_day("inputs/day_13.txt");
     days::day_fourteen::run_day("inputs/day_14.txt");
+    days::day_fifteen::run_day("inputs/day_15.txt");
 }
