@@ -43,3 +43,4 @@ inputs/*
 # Added by cargo
 
 /target
+/src/day_template.txt
