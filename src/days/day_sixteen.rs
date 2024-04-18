@@ -1,9 +1,23 @@
-use std::collections::HashMap;
-use std::fmt::{Display,Formatter};
+use std::collections::{HashMap, HashSet};
 
+use itertools::Itertools;
 
-type ValidRules = HashMap<String,(u16,u16,u16,u16)>;
+type ValidRules = HashMap<String,SingleRule>;
 type TicketNumbers = Vec<u16>;
+
+struct SingleRule {
+    start0: u16,
+    end0: u16,
+    start1: u16,
+    end1: u16
+}
+
+impl SingleRule {
+    fn valid(&self,number:&u16) -> bool {
+        (*number >= self.start0 && *number <= self.end0) ||
+        (*number >= self.start1 && *number <= self.end1)
+    }
+}
 
 struct TrainNumbers {
     rules:ValidRules,
@@ -14,19 +28,13 @@ type State = TrainNumbers;
 
 impl TrainNumbers {
     pub fn any_valid(&self, number:u16) -> bool {
-        for (name,rule) in self.rules.iter() {
-            if (number >= rule.0 && number <= rule.1) || (number >= rule.2 && number <= rule.3)
+        for rule in self.rules.values() {
+            if rule.valid(&number)
             {
                 return true
             }
         }
         false
-    }
-}
-
-impl Display for TrainNumbers {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f,"Rules: {:?}\nOwn ticket: {:?}\nOther tickets: {:?}",self.rules,self.own_ticket,self.other_tickets)
     }
 }
 
@@ -53,7 +61,7 @@ fn setup(input_path:&str) -> State {
         let b = line[first_sep+1..first_break].parse::<u16>().unwrap();
         let c = line[second_break+1..second_sep].parse::<u16>().unwrap();
         let d = line[second_sep+1..].parse::<u16>().unwrap();
-        rules.insert(field_name.into(), (a,b,c,d));
+        rules.insert(field_name.into(), SingleRule{start0:a,end0:b,start1:c,end1:d});
     }
 
     //skip the "your ticket:" line
@@ -97,7 +105,66 @@ fn star_one(initial_state:&State) -> String {
 }
 
 fn star_two(initial_state:&State) -> String {
-    "".into()
+    let mut valid_tickets:Vec<&Vec<u16>> = Vec::new();
+    'tick: for ticket in initial_state.other_tickets.iter() {
+        for number in ticket.iter() {
+            if !initial_state.any_valid(*number) {
+                continue 'tick;
+            }
+        }
+        valid_tickets.push(ticket);
+    }
+    let mut possible_fields:HashMap<String,Vec<usize>> = HashMap::new();
+    let field_count = initial_state.rules.len();
+    for (field_name,rule) in initial_state.rules.iter() {
+        let mut possible_positions:HashSet<usize> = HashSet::from_iter(0..field_count);
+        //Eliminate indices that this field can't be in, because a ticket exists that does not allow it.
+        for ticket in valid_tickets.iter(){
+            for (index,value) in ticket.iter().enumerate() {
+                if !rule.valid(value) {
+                    possible_positions.remove(&index);
+                }
+            }
+        }
+
+        possible_fields.insert(field_name.clone(), possible_positions.iter().map(|x| *x).collect_vec());
+    }
+    //Next step: find the *only* possible remaining position for each ticket-field.
+    //The fields and positions form an N-by-N grid, where each column and each row
+    // must have exactly one "valid" mark. Assume that the rows are for the field names,
+    // and the columns are for the field-order indices.
+    //First: Check if there are any rows that only have one known-not-invalid position.
+    //Second: Check if there are any columns that only have one known-not-invalid position.
+    //Third: For any row and any column with a known-valid position, mark all other cells as known-invalid.
+    //Forth: If no complete name-to-position mapping is known already, go back to First. Otherwise, break out.
+    loop {
+        //Step 1
+        let known_positions:HashSet<usize> = possible_fields.values()
+            .filter(|ele| ele.len() == 1)
+            .map(|ele| ele[0])
+            .collect();
+        //Step 2
+        /*let known_fields:HashSet<usize> = (0..field_count)
+            .filter(|value|{
+                possible_fields.values().filter(|v| v.contains(value)).count() == 1
+            })
+            .collect();
+        print!("KF: {known_fields:?} ");*/
+        //Step 3
+        possible_fields.values_mut()
+            .filter(|ele| ele.len() > 1)
+            .for_each(|ele| ele.retain(|x| !known_positions.contains(x)));
+
+        if possible_fields.values().all(|possible| possible.len() == 1) {
+            break;
+        }
+    }
+    let field_mapping:HashMap<String,usize> = possible_fields.iter().map(|ele| (ele.0.clone(),ele.1[0])).collect();
+    let result = field_mapping.iter()
+        .filter(|pair| pair.0.starts_with("departure"))
+        .map(|pair| initial_state.own_ticket[*pair.1] as usize)
+        .fold(1,|acc,ele| acc * ele);
+    format!("{result}")
 }
 
 pub fn run_day(input_path:&str) {
