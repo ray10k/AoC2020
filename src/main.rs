@@ -19,4 +19,5 @@ fn main() {
     days::day_fourteen::run_day("inputs/day_14.txt");
     //days::day_fifteen::run_day("inputs/day_15.txt"); //Disabled since it takes long to run
     days::day_sixteen::run_day("inputs/day_16.txt"); 
+    days::day_seventeen::run_day("inputs/day_17.txt"); //Takes a while
 }
