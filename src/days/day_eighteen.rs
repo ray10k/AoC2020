@@ -32,10 +32,33 @@ fn setup(input_path:&str) -> State {
         .collect()
 }
 
+fn reverse_polish_calc(input:Vec<&Token>) -> usize {
+    let mut stack:Vec<usize> = Vec::new();
+    for token in input {
+        match token {
+            Token::Literal(x) => stack.push(*x as usize),
+            Token::Add => {
+                let a = stack.pop().unwrap();
+                let b = stack.pop().unwrap();
+                stack.push(a+b);
+            },
+            Token::Mult => {
+                let a = stack.pop().unwrap();
+                let b = stack.pop().unwrap();
+                stack.push(a*b);
+            },
+            Token::Open|Token::Close => panic!("Parentheses in equation!!"),
+        }
+    }
+    if stack.len() != 1 {
+        panic!("Equation did not yield a single result!");
+    }
+    stack[0]
+}
+
 fn star_one(initial_state:&State) -> String {
     let mut retval:usize = 0;
     for statement in initial_state.iter() {
-        //println!("parsed: {statement:?}");
         let mut stack:Vec<&Token> = Vec::with_capacity(statement.len()/2);
         let mut output:Vec<&Token> = Vec::with_capacity(statement.len());
         for item in statement.iter(){ //Shunting-yard algo
@@ -63,38 +86,61 @@ fn star_one(initial_state:&State) -> String {
                     }
                 },
             }
-            //println!("st:{stack:?};out:{output:?}");
         }
-        for op in stack {
+        for op in stack.into_iter().rev() {
             output.push(op);
         }
-        println!("initial: {output:?}");
-        let mut stack:Vec<usize> = Vec::new();
-        for item in output {
-            //println!("{stack:?}");
-            match item {
-                Token::Literal(x) => stack.push(*x as usize),
-                Token::Add => {
-                    let a = stack.pop().unwrap();
-                    let b = stack.pop().unwrap();
-                    stack.push(a+b);
-                },
-                Token::Mult => {
-                    let a = stack.pop().unwrap();
-                    let b = stack.pop().unwrap();
-                    stack.push(a*b);
-                },
-                Token::Open | Token::Close => panic!("Parentheses in parsed stack!"),
-            }
-        }
+        
         //println!("final: {}",stack[0]);
-        retval += stack[0] as usize;
+        retval += reverse_polish_calc(output);
     }
     format!("{retval}")
 }
 
 fn star_two(initial_state:&State) -> String {
-    "".into()
+    let mut retval:usize = 0;
+    for line in initial_state.iter() {
+        let mut stack:Vec<&Token> = Vec::with_capacity(line.len()/2);
+        let mut output:Vec<&Token> = Vec::with_capacity(line.len());
+
+        for token in line.iter() {
+            match token {
+                Token::Literal(_) => {
+                    output.push(token);
+                },
+                Token::Add | Token::Open => {
+                    stack.push(token);
+                },
+                Token::Mult => {
+                    while let Some(Token::Add) = stack.last() {
+                        output.push(stack.pop().unwrap());
+                    }
+                    stack.push(token);
+                },
+                Token::Close => {
+                    loop {
+                        if let Some(Token::Open) = stack.last() {
+                            stack.pop();
+                            break;
+                        }
+                        let top = stack.pop();
+                        if let None = top {
+                            break;
+                        }
+                        output.push(top.unwrap());
+                    }
+                },
+            }
+        }
+        for op in stack.into_iter().rev() {
+            output.push(op);
+        }
+        //print!("{output:?} -> ");
+        let result = reverse_polish_calc(output);
+        //println!("{result}");
+        retval += result;
+    }
+    format!("{retval}")
 }
 
 pub fn run_day(input_path:&str) {
