@@ -1,21 +1,123 @@
+use regex::Regex;
 
-#[derive(Debug)]
+
+#[derive(Debug,Clone)]
 enum Value {
+    /// For the example input only.
+    Trio(u8,u8,u8),
+    /// Two rule-ids, in sequence.
     Duo(u8,u8),
+    /// A single rule-id.
     Mono(u8),
+    /// Character 'a'
     LiteralA,
+    /// Character 'b'
     LiteralB,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 enum RuleType {
+    /// Single rule-id or literal
     Single(u8,Value),
+    /// Pair of rule-ids or values, separated by a pipe.
     Double(u8,Value,Value)
 }
 
 struct ParsedInput {
     rules:Vec<RuleType>,
     messages:Vec<String>
+}
+
+const MAX_DEPTH:usize = 27;
+
+impl ParsedInput {
+    fn rule_to_regex(&self, rule_id:u8) -> String {
+        let mut retval = String::from("^");
+        //If one branch can cover at least this many
+        //characters of input, there is no need to look further; The longest input
+        //is covered at this point.
+        self.render_rule(&mut retval, rule_id, 0);
+        retval.push('$');
+
+        retval
+    }
+
+    fn render_rule(&self, regex:&mut String, rule_id:u8, depth:usize) -> usize {
+        match self.id_to_rule(rule_id) {
+            Some(RuleType::Single(_, v)) => {
+                self.render_value(regex, v, depth)
+            },
+            Some(RuleType::Double(_, left, right)) => {
+                regex.push('(');
+                let a = self.render_value(regex, left, depth);
+                regex.push('|');
+                let b = self.render_value(regex, right, depth);
+                regex.push(')');
+                std::cmp::min(a,b)
+            },
+            None => depth,
+        }
+    }
+
+    fn render_value(&self, regex:&mut String, val:&Value, depth:usize) -> usize {
+        if depth >= MAX_DEPTH {
+            return depth;
+        }
+        match val {
+            Value::Trio(one, two, three) => {
+                let a = self.render_rule(regex, *one, depth);
+                let b = self.render_rule(regex, *two, depth);
+                let c = self.render_rule(regex, *three, depth);
+                std::cmp::min(a,std::cmp::min(b,c))
+            },
+            Value::Duo(left, right) => {
+                let a = self.render_rule(regex, *left, depth);
+                let b = self.render_rule(regex, *right, depth);
+                std::cmp::min(a,b)
+            },
+            Value::Mono(val) => {
+                self.render_rule(regex, *val, depth)
+            },
+            Value::LiteralA => {
+                regex.push('a');
+                depth + 1
+            },
+            Value::LiteralB => {
+                regex.push('b');
+                depth + 1
+            },
+        }
+
+    }
+
+    fn id_to_rule(&self, rule_id:u8) -> Option<&RuleType> {
+        match self.rules.binary_search_by_key(&rule_id, |ele|{
+            match ele {
+                RuleType::Single(id, _)|RuleType::Double(id, _, _) => *id,
+            }
+        }){
+            Ok(index) => Some(&self.rules[index]),
+            Err(_) => None,
+        }
+    }
+
+    fn with_alteration(&self, replacements:Vec<RuleType>) -> Self {
+        let mut new_rules:Vec<RuleType> = self.rules.clone();
+        for replacement in replacements {
+            match replacement{
+                RuleType::Single(id, _)|
+                RuleType::Double(id, _, _) => {
+                    match new_rules.binary_search_by_key(&id,|ele| match ele {
+                        RuleType::Single(id, _)|RuleType::Double(id, _, _) => *id,
+                    }) {
+                        Ok(index) => new_rules[index] = replacement,
+                        Err(index) => new_rules.insert(index,replacement),
+                    }
+                },
+            }
+        }
+        Self{rules:new_rules,messages:self.messages.clone()}
+    }
 }
 
 type State = ParsedInput;
@@ -72,11 +174,19 @@ fn setup(input_path:&str) -> State {
         } else {
             //single
             let relevant = line[colon+1..].trim();
-            let space = relevant.rfind(' ');
+            let space = relevant.find(' ');
             if let Some(space) = space {
+                let space_count = relevant.chars().filter(|c| *c == ' ').count();
                 let a = relevant[0..space].parse::<u8>().unwrap();
-                let b = relevant[space+1 ..].parse::<u8>().unwrap();
-                rules.push(RuleType::Single(rule_id, Value::Duo(a, b)));    
+                if space_count == 2 {
+                    let other_space = relevant.rfind(' ').unwrap();
+                    let b = relevant[space+1 .. other_space].parse::<u8>().unwrap();
+                    let c = relevant[other_space+1 ..].parse::<u8>().unwrap();
+                    rules.push(RuleType::Single(rule_id, Value::Trio(a, b, c)));
+                } else {
+                    let b = relevant[space+1 ..].parse::<u8>().unwrap();
+                    rules.push(RuleType::Single(rule_id, Value::Duo(a, b)));    
+                }
             } else {
                 let a = relevant.parse::<u8>().unwrap();
                 rules.push(RuleType::Single(rule_id, Value::Mono(a)));
@@ -97,12 +207,35 @@ fn setup(input_path:&str) -> State {
 }
 
 fn star_one(initial_state:&State) -> String {
+
+    let pattern = initial_state.rule_to_regex(0);
+    let pattern = Regex::new(&pattern).expect("Invalid ruleset.");
+    let mut retval = 0;
+
+    for msg in initial_state.messages.iter(){
+        if pattern.is_match(&msg) {
+            retval += 1;
+        }
+    }
     
-    "".into()
+    format!("{retval}")
 }
 
 fn star_two(initial_state:&State) -> String {
-    "".into()
+    let initial_state = initial_state.with_alteration(vec![
+        RuleType::Double(8, Value::Mono(42), Value::Duo(42, 8)),
+        RuleType::Double(11, Value::Duo(42,31),Value::Trio(42, 11, 31))
+    ]);
+    let pattern = initial_state.rule_to_regex(0);
+    let pattern = Regex::new(&pattern).expect("Invalid ruleset.");
+    let mut retval = 0;
+
+    for msg in initial_state.messages.iter() {
+        if pattern.is_match(msg) {
+            retval += 1;
+        }
+    }
+    format!("{retval}")
 }
 
 pub fn run_day(input_path:&str) {
