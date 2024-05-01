@@ -1,9 +1,9 @@
-use regex::Regex;
+use fancy_regex::Regex;
 
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq)]
 enum Value {
-    /// For the example input only.
+    /// For the example input, and for star 2
     Trio(u8,u8,u8),
     /// Two rule-ids, in sequence.
     Duo(u8,u8),
@@ -15,7 +15,7 @@ enum Value {
     LiteralB,
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq)]
 enum RuleType {
     /// Single rule-id or literal
     Single(u8,Value),
@@ -31,13 +31,13 @@ struct ParsedInput {
 const MAX_DEPTH:usize = 27;
 
 impl ParsedInput {
+
     fn rule_to_regex(&self, rule_id:u8) -> String {
-        let mut retval = String::from("^");
+        let mut retval = String::from("");
         //If one branch can cover at least this many
         //characters of input, there is no need to look further; The longest input
         //is covered at this point.
         self.render_rule(&mut retval, rule_id, 0);
-        retval.push('$');
 
         retval
     }
@@ -209,11 +209,12 @@ fn setup(input_path:&str) -> State {
 fn star_one(initial_state:&State) -> String {
 
     let pattern = initial_state.rule_to_regex(0);
+    let pattern = format!("^{pattern}$");
     let pattern = Regex::new(&pattern).expect("Invalid ruleset.");
     let mut retval = 0;
 
     for msg in initial_state.messages.iter(){
-        if pattern.is_match(&msg) {
+        if let Result::Ok(true) = pattern.is_match(&msg) {
             retval += 1;
         }
     }
@@ -226,15 +227,36 @@ fn star_two(initial_state:&State) -> String {
         RuleType::Double(8, Value::Mono(42), Value::Duo(42, 8)),
         RuleType::Double(11, Value::Duo(42,31),Value::Trio(42, 11, 31))
     ]);
-    let pattern = initial_state.rule_to_regex(0);
-    let pattern = Regex::new(&pattern).expect("Invalid ruleset.");
+    let patt_42_s = format!("^({})",initial_state.rule_to_regex(42));
+    let patt_42 = Regex::new(&patt_42_s).expect("invalid expression");
+    let patt_31_s = format!("^({})",initial_state.rule_to_regex(31));
+    let patt_31 = Regex::new(&patt_31_s).expect("Invalid expression");
     let mut retval = 0;
-
-    for msg in initial_state.messages.iter() {
-        if pattern.is_match(msg) {
-            retval += 1;
+    for line in initial_state.messages.iter() {
+        let mut starting_point:usize = 0;
+        let mut count_l = 0;
+        loop {
+            if let Ok(Some(match_)) = patt_42.find(&line[starting_point..]) {
+                count_l += 1;
+                starting_point += match_.end();
+            } else {
+                break;
+            }
+        };
+        let mut count_r = 0;
+        loop {
+            if let Ok(Some(match_)) = patt_31.find(&line[starting_point..]) {
+                count_r += 1;
+                starting_point += match_.end();
+            } else {
+                break;
+            }
         }
+        if count_l > count_r && count_r > 0 && starting_point == line.len() {
+            retval += 1;
+        };
     }
+
     format!("{retval}")
 }
 
