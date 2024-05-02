@@ -22,4 +22,5 @@ fn main() {
     //days::day_seventeen::run_day("inputs/day_17.txt"); //slow
     days::day_eighteen::run_day("inputs/day_18.txt"); 
     days::day_nineteen::run_day("inputs/day_19.txt");
+    days::day_twenty::run_day("inputs/day_20.txt");
 }
